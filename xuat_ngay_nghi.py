@@ -272,6 +272,26 @@ def write_workbook(path: Path, rows: list[dict]) -> None:
     workbook.save(path)
 
 
+def _sql_text(value: str) -> str:
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def insert_statement(row: dict) -> str:
+    """Một dòng Oracle đúng cấu trúc bvxa_lichnghi."""
+    return (
+        "insert into bvxa_lichnghi(mabs,nam,thang,ngay,sang,chieu) values ("
+        f"{_sql_text(row['code'])},{int(row['year'])},{int(row['month'])},{int(row['day'])},"
+        f"{_sql_text(row['morning'])},{_sql_text(row['afternoon'])});"
+    )
+
+
+def write_oracle_script(path: Path, rows: list[dict]) -> None:
+    lines = ["set define off;"]
+    lines.extend(insert_statement(row) for row in rows)
+    lines.append("commit;")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def export_leave_workbook(source: Path, output: Path | None = None) -> dict:
     """Đọc file chấm công và ghi file ngày nghỉ. Trả về số liệu đã xuất."""
     from dailytool.doctors import apply_to_people
@@ -287,11 +307,14 @@ def export_leave_workbook(source: Path, output: Path | None = None) -> dict:
     else:
         output = output.expanduser().resolve()
     write_workbook(output, rows)
+    sql_path = output.with_suffix(".sql")
+    write_oracle_script(sql_path, rows)
     morning = sum(1 for row in rows if row["morning"] == "X")
     afternoon = sum(1 for row in rows if row["afternoon"] == "X")
     full = sum(1 for row in rows if not row["morning"] and not row["afternoon"])
     return {
         "output": output,
+        "sql": sql_path,
         "month": month,
         "year": year,
         "doctors": len(people),
@@ -321,6 +344,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  Cả ngày: {result['full']}    Nghỉ sáng: {result['morning']}    Nghỉ chiều: {result['afternoon']}")
     print(f"  Đã gắn mã: {result['coded']}    Chưa có mã: {len(result['uncoded'])}    Trùng mã: {len(result['ambiguous'])}")
     print(f"Đã ghi {result['output']}")
+    print(f"Đã ghi {result['sql']}")
     return 0
 
 

@@ -181,7 +181,7 @@ def _leave_form(message: str = "", path: str = "") -> bytes:
     )
 
 
-def _result_page(result: dict, token: str) -> bytes:
+def _result_page(result: dict, token: str, sql_token: str) -> bytes:
     return _page(
         "Đã xuất ngày nghỉ",
         f"""
@@ -195,6 +195,7 @@ def _result_page(result: dict, token: str) -> bytes:
             <div class="stat"><b>{result["afternoon"]}</b><span>Nghỉ chiều</span></div>
           </div>
           <a class="button" href="/tai/{token}">Tải Ngày Nghỉ BS T{result["month"]}.xlsx</a>
+          <a class="button secondary" href="/tai/{sql_token}">Tải file SQL Oracle</a>
           <p class="note">{_code_note(result)}</p>
         </section>
         """,
@@ -349,8 +350,12 @@ class Handler(BaseHTTPRequestHandler):
                 return
             target, download_name = stored
             data = target.read_bytes()
+            if download_name.lower().endswith(".sql"):
+                content_type = "text/plain; charset=utf-8"
+            else:
+                content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             self.send_response(200)
-            self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{quote(download_name)}")
             self.end_headers()
@@ -374,8 +379,10 @@ class Handler(BaseHTTPRequestHandler):
             result = export_leave_workbook(source, output)
             download_name = f"Ngày Nghỉ BS T{result['month']}.xlsx"
             token = uuid.uuid4().hex
+            sql_token = uuid.uuid4().hex
             _RESULTS[token] = (output, download_name)
-            self._html(_result_page(result, token))
+            _RESULTS[sql_token] = (Path(result["sql"]), f"Ngày Nghỉ BS T{result['month']}.sql")
+            self._html(_result_page(result, token, sql_token))
         except Exception as error:
             self._html(_leave_form(str(error), path_text), status=400)
 

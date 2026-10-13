@@ -267,6 +267,7 @@ class DailyTool(tk.Tk):
         self._update_label = "Kiểm tra cập nhật"
         self._want_prompt = False
         self._last_output: Path | None = None
+        self._last_sql: Path | None = None
         self._queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self._update_queue: queue.Queue[tuple] = queue.Queue()
 
@@ -346,6 +347,8 @@ class DailyTool(tk.Tk):
         ttk.Button(actions, text="Mã bác sĩ…", command=self.open_codes).pack(side="left", padx=(8, 0))
         self.open_button = ttk.Button(actions, text="Mở file kết quả", command=self.open_result, state="disabled")
         self.open_button.pack(side="left", padx=(8, 0))
+        self.sql_button = ttk.Button(actions, text="Mở file SQL", command=self.open_sql, state="disabled")
+        self.sql_button.pack(side="left", padx=(8, 0))
 
         self.result_label = ttk.Label(content, text="", style="Result.TLabel", justify="left", wraplength=460)
         self.result_label.pack(anchor="w", pady=(16, 0))
@@ -402,6 +405,7 @@ class DailyTool(tk.Tk):
         self._busy = True
         self.export_button.state(["disabled"])
         self.open_button.state(["disabled"])
+        self.sql_button.state(["disabled"])
         self.result_label.configure(text="")
         self.status_var.set("Đang đọc file chấm công…")
 
@@ -432,7 +436,9 @@ class DailyTool(tk.Tk):
         self._busy = False
         self.export_button.state(["!disabled"])
         self.open_button.state(["!disabled"])
+        self.sql_button.state(["!disabled"])
         self._last_output = Path(result["output"])
+        self._last_sql = Path(result["sql"])
         self.output_var.set(str(self._last_output))
         uncoded = result["uncoded"]
         ambiguous = result["ambiguous"]
@@ -450,10 +456,11 @@ class DailyTool(tk.Tk):
                 f"{result['doctors']} bác sĩ, {result['rows']} dòng ngày nghỉ\n"
                 f"Cả ngày: {result['full']}    Nghỉ sáng: {result['morning']}    Nghỉ chiều: {result['afternoon']}\n"
                 f"Đã gắn mã: {result['coded']}"
-                f"{extra}"
+                f"{extra}\n"
+                f"SQL: {self._last_sql.name}"
             )
         )
-        self.status_var.set(f"Đã ghi {self._last_output.name}")
+        self.status_var.set(f"Đã ghi {self._last_output.name} và {self._last_sql.name}")
 
     def _export_failed(self, error: Exception) -> None:
         self._busy = False
@@ -586,11 +593,20 @@ class DailyTool(tk.Tk):
         self.status_var.set("Đang cài bản mới…")
         self.destroy()
 
+    def open_sql(self) -> None:
+        if self._last_sql is None or not self._last_sql.exists():
+            messagebox.showwarning("DailyTool", "Chưa có file SQL.")
+            return
+        self._open_path(self._last_sql)
+
     def open_result(self) -> None:
         if self._last_output is None or not self._last_output.exists():
             messagebox.showwarning("DailyTool", "Chưa có file kết quả.")
             return
-        path = str(self._last_output)
+        self._open_path(self._last_output)
+
+    def _open_path(self, target: Path) -> None:
+        path = str(target)
         if sys.platform == "win32":
             os.startfile(path)  # type: ignore[attr-defined]
             return
