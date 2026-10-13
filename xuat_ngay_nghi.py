@@ -285,15 +285,28 @@ def insert_statement(row: dict) -> str:
     )
 
 
-def write_oracle_script(path: Path, rows: list[dict]) -> None:
+def build_oracle_script(rows: list[dict]) -> str:
     lines = ["set define off;"]
     lines.extend(insert_statement(row) for row in rows)
     lines.append("commit;")
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return "\n".join(lines) + "\n"
 
 
-def export_leave_workbook(source: Path, output: Path | None = None) -> dict:
-    """Đọc file chấm công và ghi file ngày nghỉ. Trả về số liệu đã xuất."""
+def write_oracle_script(path: Path, rows: list[dict]) -> None:
+    path.write_text(build_oracle_script(rows), encoding="utf-8")
+
+
+def export_leave_workbook(
+    source: Path,
+    output: Path | None = None,
+    *,
+    write_excel: bool = True,
+) -> dict:
+    """Đọc file chấm công và xuất ngày nghỉ. Trả về số liệu + sql_text.
+
+    Khi write_excel=True: ghi .xlsx và .sql cạnh đó.
+    Khi write_excel=False: chỉ trả sql_text, không ghi file.
+    """
     from dailytool.doctors import apply_to_people
 
     source = source.expanduser().resolve()
@@ -302,19 +315,26 @@ def export_leave_workbook(source: Path, output: Path | None = None) -> dict:
     month, year, people = parse_attendance(source)
     codes = apply_to_people(people)
     rows = build_rows(month, year, people)
-    if output is None:
-        output = source.parent / f"Ngày Nghỉ BS T{month}.xlsx"
-    else:
-        output = output.expanduser().resolve()
-    write_workbook(output, rows)
-    sql_path = output.with_suffix(".sql")
-    write_oracle_script(sql_path, rows)
+    sql_text = build_oracle_script(rows)
+
+    output_path: Path | None = None
+    sql_path: Path | None = None
+    if write_excel:
+        if output is None:
+            output_path = source.parent / f"Ngày Nghỉ BS T{month}.xlsx"
+        else:
+            output_path = output.expanduser().resolve()
+        write_workbook(output_path, rows)
+        sql_path = output_path.with_suffix(".sql")
+        write_oracle_script(sql_path, rows)
+
     morning = sum(1 for row in rows if row["morning"] == "X")
     afternoon = sum(1 for row in rows if row["afternoon"] == "X")
     full = sum(1 for row in rows if not row["morning"] and not row["afternoon"])
     return {
-        "output": output,
+        "output": output_path,
         "sql": sql_path,
+        "sql_text": sql_text,
         "month": month,
         "year": year,
         "doctors": len(people),
