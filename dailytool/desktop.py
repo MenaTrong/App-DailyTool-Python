@@ -10,7 +10,7 @@ import threading
 import tkinter as tk
 import webbrowser
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, scrolledtext, ttk
 
 from dailytool import GITHUB_REPO, __version__
 from dailytool.doctors import (
@@ -256,18 +256,19 @@ class DailyTool(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title(f"DailyTool {__version__}")
-        self.geometry("760x520")
-        self.minsize(680, 460)
+        self.geometry("900x640")
+        self.minsize(780, 560)
         self.configure(bg="#f4f6f5")
         self.source_var = tk.StringVar()
         self.output_var = tk.StringVar()
-        self.status_var = tk.StringVar(value="Chọn file chấm công, rồi xuất Excel.")
+        self.save_excel_var = tk.BooleanVar(value=True)
+        self.status_var = tk.StringVar(value="Chọn file chấm công, rồi xuất.")
         self._busy = False
         self._update_busy = False
         self._update_label = "Kiểm tra cập nhật"
         self._want_prompt = False
         self._last_output: Path | None = None
-        self._last_sql: Path | None = None
+        self._last_sql_text = ""
         self._queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self._update_queue: queue.Queue[tuple] = queue.Queue()
 
@@ -323,7 +324,7 @@ class DailyTool(tk.Tk):
         ttk.Label(content, text="Ngày nghỉ bác sĩ", style="Title.TLabel").pack(anchor="w")
         ttk.Label(
             content,
-            text="Đọc file chấm công tháng và ghi danh sách ngày bác sĩ nghỉ.\nNgày đã đánh + hoặc T không được đưa vào file kết quả.\nCột Mã bác sĩ lấy theo danh mục trong tác vụ này.",
+            text="Đọc file chấm công tháng và tạo danh sách ngày bác sĩ nghỉ.\nNgày đã đánh + hoặc T không được đưa vào kết quả.\nCột Mã bác sĩ lấy theo danh mục trong tác vụ này. SQL hiện trong app để copy.",
             style="Muted.TLabel",
             justify="left",
         ).pack(anchor="w", pady=(6, 18))
@@ -333,25 +334,46 @@ class DailyTool(tk.Tk):
         form.columnconfigure(0, weight=1)
 
         ttk.Label(form, text="File chấm công", style="Body.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Entry(form, textvariable=self.source_var).grid(row=1, column=0, sticky="ew", pady=(4, 12))
-        ttk.Button(form, text="Chọn file…", command=self.choose_source).grid(row=1, column=1, padx=(8, 0), pady=(4, 12))
+        ttk.Entry(form, textvariable=self.source_var).grid(row=1, column=0, sticky="ew", pady=(4, 8))
+        ttk.Button(form, text="Chọn file…", command=self.choose_source).grid(row=1, column=1, padx=(8, 0), pady=(4, 8))
 
-        ttk.Label(form, text="File kết quả", style="Body.TLabel").grid(row=2, column=0, sticky="w")
-        ttk.Entry(form, textvariable=self.output_var).grid(row=3, column=0, sticky="ew", pady=(4, 0))
-        ttk.Button(form, text="Đổi chỗ lưu…", command=self.choose_output).grid(row=3, column=1, padx=(8, 0), pady=(4, 0))
+        self.save_excel_check = ttk.Checkbutton(
+            form,
+            text="Lưu file Excel",
+            variable=self.save_excel_var,
+            command=self._toggle_save_excel,
+        )
+        self.save_excel_check.grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, 4))
+
+        self.output_label = ttk.Label(form, text="File kết quả", style="Body.TLabel")
+        self.output_label.grid(row=3, column=0, sticky="w")
+        self.output_entry = ttk.Entry(form, textvariable=self.output_var)
+        self.output_entry.grid(row=4, column=0, sticky="ew", pady=(4, 0))
+        self.output_browse = ttk.Button(form, text="Đổi chỗ lưu…", command=self.choose_output)
+        self.output_browse.grid(row=4, column=1, padx=(8, 0), pady=(4, 0))
 
         actions = ttk.Frame(content)
         actions.pack(fill="x", pady=(18, 8))
-        self.export_button = ttk.Button(actions, text="Xuất Excel", command=self.export)
+        self.export_button = ttk.Button(actions, text="Xuất", command=self.export)
         self.export_button.pack(side="left")
         ttk.Button(actions, text="Mã bác sĩ…", command=self.open_codes).pack(side="left", padx=(8, 0))
-        self.open_button = ttk.Button(actions, text="Mở file kết quả", command=self.open_result, state="disabled")
+        self.open_button = ttk.Button(actions, text="Mở file Excel", command=self.open_result, state="disabled")
         self.open_button.pack(side="left", padx=(8, 0))
-        self.sql_button = ttk.Button(actions, text="Mở file SQL", command=self.open_sql, state="disabled")
-        self.sql_button.pack(side="left", padx=(8, 0))
+        self.copy_sql_button = ttk.Button(actions, text="Copy SQL", command=self.copy_sql, state="disabled")
+        self.copy_sql_button.pack(side="left", padx=(8, 0))
 
-        self.result_label = ttk.Label(content, text="", style="Result.TLabel", justify="left", wraplength=460)
-        self.result_label.pack(anchor="w", pady=(16, 0))
+        self.result_label = ttk.Label(content, text="", style="Result.TLabel", justify="left", wraplength=620)
+        self.result_label.pack(anchor="w", pady=(12, 4))
+
+        ttk.Label(content, text="SQL Oracle", style="Body.TLabel").pack(anchor="w", pady=(4, 0))
+        self.sql_view = scrolledtext.ScrolledText(
+            content,
+            height=12,
+            wrap="none",
+            font=("Consolas", 10),
+            state="disabled",
+        )
+        self.sql_view.pack(fill="both", expand=True, pady=(4, 8))
 
         ttk.Label(content, textvariable=self.status_var, style="Muted.TLabel").pack(side="bottom", anchor="w")
         self.after(600, self._show_update_problem)
@@ -383,6 +405,25 @@ class DailyTool(tk.Tk):
         if path:
             self.output_var.set(path)
 
+    def _toggle_save_excel(self) -> None:
+        save = self.save_excel_var.get()
+        state = "!disabled" if save else "disabled"
+        self.output_entry.state([state])
+        self.output_browse.state([state])
+        if save:
+            self.export_button.configure(text="Xuất")
+            self.status_var.set("Sẵn sàng xuất (có lưu Excel).")
+        else:
+            self.export_button.configure(text="Tạo SQL")
+            self.status_var.set("Sẵn sàng tạo SQL (không lưu Excel).")
+
+    def _set_sql_view(self, text: str) -> None:
+        self.sql_view.configure(state="normal")
+        self.sql_view.delete("1.0", "end")
+        if text:
+            self.sql_view.insert("1.0", text)
+        self.sql_view.configure(state="disabled")
+
     def export(self) -> None:
         if self._busy:
             return
@@ -394,24 +435,29 @@ class DailyTool(tk.Tk):
         if not source.exists():
             messagebox.showerror("DailyTool", f"Không thấy file:\n{source}")
             return
-        output_text = self.output_var.get().strip()
-        output = Path(output_text).expanduser() if output_text else None
-        if output is not None and output.resolve() == source.resolve():
-            messagebox.showerror("DailyTool", "File kết quả phải khác file chấm công.")
-            return
-        if output is None or output.resolve() == source.with_name("Ngày Nghỉ BS.xlsx").resolve():
-            output = None
+
+        write_excel = self.save_excel_var.get()
+        output: Path | None = None
+        if write_excel:
+            output_text = self.output_var.get().strip()
+            output = Path(output_text).expanduser() if output_text else None
+            if output is not None and output.resolve() == source.resolve():
+                messagebox.showerror("DailyTool", "File kết quả phải khác file chấm công.")
+                return
+            if output is None or output.resolve() == source.with_name("Ngày Nghỉ BS.xlsx").resolve():
+                output = None
 
         self._busy = True
         self.export_button.state(["disabled"])
         self.open_button.state(["disabled"])
-        self.sql_button.state(["disabled"])
+        self.copy_sql_button.state(["disabled"])
         self.result_label.configure(text="")
+        self._set_sql_view("")
         self.status_var.set("Đang đọc file chấm công…")
 
         def work() -> None:
             try:
-                result = export_leave_workbook(source, output)
+                result = export_leave_workbook(source, output, write_excel=write_excel)
             except Exception as error:
                 self._queue.put(("err", error))
                 return
@@ -435,11 +481,19 @@ class DailyTool(tk.Tk):
     def _export_done(self, result: dict) -> None:
         self._busy = False
         self.export_button.state(["!disabled"])
-        self.open_button.state(["!disabled"])
-        self.sql_button.state(["!disabled"])
-        self._last_output = Path(result["output"])
-        self._last_sql = Path(result["sql"])
-        self.output_var.set(str(self._last_output))
+        self._last_sql_text = str(result.get("sql_text") or "")
+        self._set_sql_view(self._last_sql_text)
+        if self._last_sql_text:
+            self.copy_sql_button.state(["!disabled"])
+
+        output = result.get("output")
+        self._last_output = Path(output) if output else None
+        if self._last_output is not None:
+            self.output_var.set(str(self._last_output))
+            self.open_button.state(["!disabled"])
+        else:
+            self.open_button.state(["disabled"])
+
         uncoded = result["uncoded"]
         ambiguous = result["ambiguous"]
         extra = ""
@@ -456,11 +510,14 @@ class DailyTool(tk.Tk):
                 f"{result['doctors']} bác sĩ, {result['rows']} dòng ngày nghỉ\n"
                 f"Cả ngày: {result['full']}    Nghỉ sáng: {result['morning']}    Nghỉ chiều: {result['afternoon']}\n"
                 f"Đã gắn mã: {result['coded']}"
-                f"{extra}\n"
-                f"SQL: {self._last_sql.name}"
+                f"{extra}"
             )
         )
-        self.status_var.set(f"Đã ghi {self._last_output.name} và {self._last_sql.name}")
+        if self._last_output is not None:
+            sql_name = Path(result["sql"]).name if result.get("sql") else "SQL trong app"
+            self.status_var.set(f"Đã ghi {self._last_output.name} và {sql_name}")
+        else:
+            self.status_var.set("Đã tạo SQL (không lưu Excel). Có thể Copy SQL.")
 
     def _export_failed(self, error: Exception) -> None:
         self._busy = False
@@ -593,15 +650,18 @@ class DailyTool(tk.Tk):
         self.status_var.set("Đang cài bản mới…")
         self.destroy()
 
-    def open_sql(self) -> None:
-        if self._last_sql is None or not self._last_sql.exists():
-            messagebox.showwarning("DailyTool", "Chưa có file SQL.")
+    def copy_sql(self) -> None:
+        if not self._last_sql_text:
+            messagebox.showwarning("DailyTool", "Chưa có SQL để copy.")
             return
-        self._open_path(self._last_sql)
+        self.clipboard_clear()
+        self.clipboard_append(self._last_sql_text)
+        self.update_idletasks()
+        self.status_var.set("Đã copy SQL vào clipboard.")
 
     def open_result(self) -> None:
         if self._last_output is None or not self._last_output.exists():
-            messagebox.showwarning("DailyTool", "Chưa có file kết quả.")
+            messagebox.showwarning("DailyTool", "Chưa có file Excel.")
             return
         self._open_path(self._last_output)
 
