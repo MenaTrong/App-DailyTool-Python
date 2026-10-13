@@ -1,0 +1,754 @@
+{
+  "doctors": [
+    {
+      "id": "5cb632104fa1",
+      "name": "Vi Hoài Thương",
+      "code": "thuongvh_hhnt"
+    },
+    {
+      "id": "93ed7379c93d",
+      "name": "Bùi Yến Nhi",
+      "code": "nhiby_ntm"
+    },
+    {
+      "id": "2a6cbfbc8eb7",
+      "name": "Nguyễn Như Quỳnh",
+      "code": "quynhnn_san"
+    },
+    {
+      "id": "e2c441ea409b",
+      "name": "Lê Nhật Tôn",
+      "code": "tonln_ngtk"
+    },
+    {
+      "id": "a6b952501c30",
+      "name": "Trần Trường An",
+      "code": "antt_ngtk"
+    },
+    {
+      "id": "663be434b8ec",
+      "name": "Nguyễn Minh Duy",
+      "code": "duynm_ngtk"
+    },
+    {
+      "id": "77ca8d96ac03",
+      "name": "Hoàng Huy",
+      "code": "huyh_hhnt"
+    },
+    {
+      "id": "5d33340c5621",
+      "name": "Vương Hữu Khang",
+      "code": "khangvh_hhnt"
+    },
+    {
+      "id": "73f1d025db65",
+      "name": "Diệp Hoàng Tuấn",
+      "code": "tuandh_ngtk"
+    },
+    {
+      "id": "17d8693a3ca3",
+      "name": "Nguyễn Thị Quỳnh Nga",
+      "code": "ngantq_mat"
+    },
+    {
+      "id": "0b11fdf773dd",
+      "name": "Phạm Thị Hoa",
+      "code": "hoapt_tc"
+    },
+    {
+      "id": "d7a3c1d06530",
+      "name": "Lê Thanh Sơn",
+      "code": "sonlt_nhh"
+    },
+    {
+      "id": "3da6ddb22585",
+      "name": "Lâm Sa Rô",
+      "code": "rols-ngtk"
+    },
+    {
+      "id": "c4c1571669ae",
+      "name": "Nguyễn Thái Sơn",
+      "code": "sonnt_ngtk"
+    },
+    {
+      "id": "6e806dd09b00",
+      "name": "Đỗ Hoàng Thái",
+      "code": "thaidh_ntq"
+    },
+    {
+      "id": "53317f8f5d85",
+      "name": "Trần Tuấn Huy",
+      "code": "huytt_ntq"
+    },
+    {
+      "id": "4221f945e92a",
+      "name": "Phạm Huy Tín",
+      "code": "tinph_ntq"
+    },
+    {
+      "id": "f28ab4170c18",
+      "name": "Nguyễn Thế Anh",
+      "code": "anhnt_cdha"
+    },
+    {
+      "id": "66dee3ef7108",
+      "name": "Nguyễn Thị Thùy Nhung",
+      "code": "nhungntt_hhnt"
+    },
+    {
+      "id": "103c71135614",
+      "name": "Trần Khắc Thành",
+      "code": "thanhtk_yhct"
+    },
+    {
+      "id": "a703dcf0d9ca",
+      "name": "Lưu Thế Nhựt",
+      "code": "nhutlt_ntm"
+    },
+    {
+      "id": "665ba20d2097",
+      "name": "Lương Minh Đường",
+      "code": "duonglm_hhnt"
+    },
+    {
+      "id": "94c151c308b4",
+      "name": "Hʻ ĐUÊN BʻKRÔNG",
+      "code": "hduenbkr_kkb"
+    },
+    {
+      "id": "b7ced5595242",
+      "name": "Lục Minh Đức",
+      "code": "duclm_cdha"
+    },
+    {
+      "id": "812aec7cd4bb",
+      "name": "Nguyễn Văn Tâm",
+      "code": "tamnv_ngtk"
+    },
+    {
+      "id": "4ced5bd04be0",
+      "name": "Trần Minh Thiên",
+      "code": "thientm"
+    },
+    {
+      "id": "1e500df05c24",
+      "name": "Lê Hòa Quốc Bảo",
+      "code": "baolhq_ngtq"
+    },
+    {
+      "id": "e3a32642f851",
+      "name": "Mai Thị Nguyên Hiếu",
+      "code": "hieumtn_cdha"
+    },
+    {
+      "id": "e1272ec17f3e",
+      "name": "Phạm Thị Loan",
+      "code": "loanpt_ntq"
+    },
+    {
+      "id": "2223dc720bef",
+      "name": "Nguyễn Thị Thùy Trang",
+      "code": "trangntt_ntq"
+    },
+    {
+      "id": "53cd6e5424d3",
+      "name": "Nguyễn Phương Duy",
+      "code": "duynp_nhi"
+    },
+    {
+      "id": "22cb0662892e",
+      "name": "Lê Hải Đăng",
+      "code": "danglh_nhi"
+    },
+    {
+      "id": "0939b27439af",
+      "name": "Tiết Văn Linh",
+      "code": "linhtv_ntm"
+    },
+    {
+      "id": "0ad208f06424",
+      "name": "Huỳnh Đặng Uyên Thi",
+      "code": "thihdu_nhi"
+    },
+    {
+      "id": "f1e8401fc112",
+      "name": "Nguyễn Thị Thu Hằng",
+      "code": "hangntt_ngtq"
+    },
+    {
+      "id": "871936b2454f",
+      "name": "Nguyễn Thành Tâm",
+      "code": "tamnt_ngtq"
+    },
+    {
+      "id": "bf6f8923d2a9",
+      "name": "Đào Văn Bách",
+      "code": "bachdv_ngtk"
+    },
+    {
+      "id": "d787ca7bd264",
+      "name": "Trương Thành Tuyên",
+      "code": "tuyentt_san"
+    },
+    {
+      "id": "8a3b8089b986",
+      "name": "Lý Công Thức",
+      "code": "thuclc_cdha"
+    },
+    {
+      "id": "0f934b605c40",
+      "name": "Trần Thị Thu Hiếu",
+      "code": "hieuttt_yhct"
+    },
+    {
+      "id": "257e91792fd7",
+      "name": "Hoàng Ngọc Thắng",
+      "code": "thanghn_cdha"
+    },
+    {
+      "id": "2039594ed1c5",
+      "name": "Nguyễn Mạnh Hùng",
+      "code": "hungnm_cdha"
+    },
+    {
+      "id": "814e8fd1eaa9",
+      "name": "Phạm Ngọc Điệp",
+      "code": "dieppn_cdha"
+    },
+    {
+      "id": "2024316cf6b0",
+      "name": "Lê Văn Hùng",
+      "code": "hunglv_ntm"
+    },
+    {
+      "id": "1e1676cab1d8",
+      "name": "Nguyễn Trí Minh",
+      "code": "minhnt_nhi"
+    },
+    {
+      "id": "80ae1bc0a780",
+      "name": "Phạm Thị Thương",
+      "code": "thuongpt_ntq"
+    },
+    {
+      "id": "9fd09ddf169a",
+      "name": "Thị Kim Ngọc",
+      "code": "ngoctk_icu"
+    },
+    {
+      "id": "696958c96c20",
+      "name": "Nguyễn Xuân Vĩnh Phúc",
+      "code": "phucnxv_icu"
+    },
+    {
+      "id": "aac14fc7fd64",
+      "name": "Lê Đặng Thái Phương",
+      "code": "phuongldt_icu"
+    },
+    {
+      "id": "df9f8c595334",
+      "name": "Tô Thanh Sơn",
+      "code": "sontt_kkb"
+    },
+    {
+      "id": "51ce6937c834",
+      "name": "Phạm Thị Thanh Nhàn",
+      "code": "nhanptt_kkb"
+    },
+    {
+      "id": "010836ea25e3",
+      "name": "Hồ Hoài Hưng",
+      "code": "hunghh_ngtk"
+    },
+    {
+      "id": "cceada5a9a73",
+      "name": "Hoàng Văn Sỹ",
+      "code": "syhv_ngtn"
+    },
+    {
+      "id": "c81fec60bf9d",
+      "name": "Nguyễn Thanh Thái",
+      "code": "thaint_cc"
+    },
+    {
+      "id": "4e178a82ea45",
+      "name": "Nguyễn Giang Toàn",
+      "code": "toanng_ctch"
+    },
+    {
+      "id": "eafb88974652",
+      "name": "Nguyễn Văn Hải",
+      "code": "hainv_ctch"
+    },
+    {
+      "id": "1feae9cb65e6",
+      "name": "Lý Thanh Thơ",
+      "code": "tholt_ctch"
+    },
+    {
+      "id": "ac1f9a56f8c1",
+      "name": "Trương Thảo Nguyên",
+      "code": "nguyentt_ctch"
+    },
+    {
+      "id": "7b1dc9d46da7",
+      "name": "Từ Ngọc Minh Khoa",
+      "code": "khoatnm_ctch"
+    },
+    {
+      "id": "436ca4cc9f4e",
+      "name": "Lê Thị Bích Trâm",
+      "code": "tramltb_san"
+    },
+    {
+      "id": "503d898aa9a5",
+      "name": "Quách Trương Nguyện",
+      "code": "nguyenqt_gmhs"
+    },
+    {
+      "id": "0f887f4f962e",
+      "name": "Lê Quang Minh",
+      "code": "minhlq_san"
+    },
+    {
+      "id": "e10c622aae3f",
+      "name": "Đỗ Thị Thùy Dương",
+      "code": "duongdtt_san"
+    },
+    {
+      "id": "375e95adef90",
+      "name": "Nguyễn Thiện Hằng",
+      "code": "hangnt_san"
+    },
+    {
+      "id": "ce3f68182d64",
+      "name": "Lê Trí Nhân",
+      "code": "nhanlt_gmhs"
+    },
+    {
+      "id": "c2610996124b",
+      "name": "Nguyễn Tấn Phát",
+      "code": "phatnt_icu"
+    },
+    {
+      "id": "51ff76fdf83a",
+      "name": "Phạm Thị Diệu Lý",
+      "code": "lyptd_lck"
+    },
+    {
+      "id": "025962a5729e",
+      "name": "Nguyễn Thị Quỳnh Trâm",
+      "code": "tramntq_nhi"
+    },
+    {
+      "id": "f099f031f7c3",
+      "name": "Đàm Lê Kim Xuyến",
+      "code": "xuyendlk_san"
+    },
+    {
+      "id": "ddc0ccccb1e0",
+      "name": "Trần Hữu Nghĩa",
+      "code": "nghiath_cc"
+    },
+    {
+      "id": "ecf2bf00f37c",
+      "name": "Nguyễn Tấn Trung",
+      "code": "trungnt_ngtn"
+    },
+    {
+      "id": "a30888ef134b",
+      "name": "Nguyễn Thanh Sang",
+      "code": "sangnt_ngtq"
+    },
+    {
+      "id": "81efb238c589",
+      "name": "Nguyễn Ngọc Quí",
+      "code": "quinn_ntlm"
+    },
+    {
+      "id": "404933ffff12",
+      "name": "Hồ Văn Mót",
+      "code": "mothv_ntm"
+    },
+    {
+      "id": "03b2bd4047dd",
+      "name": "Lại Bá Vương",
+      "code": "vuonglb_hhnt"
+    },
+    {
+      "id": "47ebe9073135",
+      "name": "Hồ Ngọc Việt",
+      "code": "viethn_ntq"
+    },
+    {
+      "id": "3313ea844443",
+      "name": "Ngô Hùng Trí",
+      "code": "trinh_ns"
+    },
+    {
+      "id": "df2af70743ec",
+      "name": "Nguyễn Hoàng Cương",
+      "code": "cuongnh_ctch"
+    },
+    {
+      "id": "c3bf9d58d246",
+      "name": "Ngô Hùng Trí",
+      "code": "hanhchanh_ns"
+    },
+    {
+      "id": "5c9dd87b89a0",
+      "name": "Phạm Minh Đức",
+      "code": "ducpm_ns"
+    },
+    {
+      "id": "f0163f48adff",
+      "name": "Trần Thị Mỹ Hạnh",
+      "code": "hanhttm_ntq"
+    },
+    {
+      "id": "d8e29c58a653",
+      "name": "Nguyễn Xuân Hưng",
+      "code": "hungnx_cdha"
+    },
+    {
+      "id": "8603a5a49f19",
+      "name": "H' BOONG",
+      "code": "hboong_ntq"
+    },
+    {
+      "id": "194850960a4d",
+      "name": "Nguyễn Thị Ngọc Trinh",
+      "code": "trinhntn_ntq"
+    },
+    {
+      "id": "3084e7e7cb31",
+      "name": "Mai Tấn Đạt",
+      "code": "datmt_ntq"
+    },
+    {
+      "id": "831ca2cbd3ed",
+      "name": "Lưu Nhật Minh",
+      "code": "minhln_ntm"
+    },
+    {
+      "id": "81b51227e94b",
+      "name": "Nguyễn Tiến Đạt",
+      "code": "datnt_ntm"
+    },
+    {
+      "id": "cf9b71056c2b",
+      "name": "Trần Thành Long",
+      "code": "longtt_ntm"
+    },
+    {
+      "id": "728a130b4b28",
+      "name": "Nguyễn Đức Thắng",
+      "code": "thangnd_ntm"
+    },
+    {
+      "id": "24bd56c3b51f",
+      "name": "Y GRIM KBUÔR",
+      "code": "kbuoryg_ntlm"
+    },
+    {
+      "id": "17b30c7a7924",
+      "name": "Bùi Tuấn Thành",
+      "code": "thanhbt_nhi"
+    },
+    {
+      "id": "dcb2752b21a8",
+      "name": "Huỳnh Trung Hiếu",
+      "code": "hieuht_nhi"
+    },
+    {
+      "id": "ecd0a407173d",
+      "name": "Nguyễn Thị Xuân Trang",
+      "code": "trangntx_nhi"
+    },
+    {
+      "id": "8b36a35ed0d0",
+      "name": "Vương Mỹ Ngân",
+      "code": "nganvm_nhi"
+    },
+    {
+      "id": "96ee12f0962b",
+      "name": "Nguyễn Ngọc Nga",
+      "code": "ngann_nhi"
+    },
+    {
+      "id": "b8ec1dab43c3",
+      "name": "Vi Văn Thành",
+      "code": "thanhvv_ngtq"
+    },
+    {
+      "id": "80adc80c251e",
+      "name": "Nguyễn Minh Đức",
+      "code": "ducnm_ngtn"
+    },
+    {
+      "id": "6089707ccc94",
+      "name": "Phạm Ngọc Linh",
+      "code": "linhpn_ngtn"
+    },
+    {
+      "id": "ad99590a5ced",
+      "name": "Lê Nguyễn Phú",
+      "code": "phuln_ngtn"
+    },
+    {
+      "id": "d30b01a7896b",
+      "name": "Dương Thanh Tú",
+      "code": "tudt_ngtq"
+    },
+    {
+      "id": "d5b875c36438",
+      "name": "Đỗ Việt Hưng",
+      "code": "hungdv_ngtq"
+    },
+    {
+      "id": "c5a997f257e8",
+      "name": "Hồ Tiến Duy",
+      "code": "duyht_ngtq"
+    },
+    {
+      "id": "081057f56ffd",
+      "name": "Nguyễn Trung Hiếu",
+      "code": "hieunt_ngtq"
+    },
+    {
+      "id": "0bb143fe23d3",
+      "name": "Phạm Tuấn Cường",
+      "code": "cuongpt_ngtk"
+    },
+    {
+      "id": "7b3371991bab",
+      "name": "Nguyễn Ngọc Phan Quyên",
+      "code": "quyennnp_kkb"
+    },
+    {
+      "id": "52c7cf73fbaf",
+      "name": "Phạm Thị Hoa",
+      "code": "hoapt_kkb"
+    },
+    {
+      "id": "4f90d52f41ab",
+      "name": "Y Mai Thi",
+      "code": "thiym_kkb"
+    },
+    {
+      "id": "2bf0d6cdafc6",
+      "name": "Phan Đỗ Nhân",
+      "code": "nhanpd_lck"
+    },
+    {
+      "id": "71da6e05395b",
+      "name": "Nguyễn Trung Hậu",
+      "code": "haunt_lck"
+    },
+    {
+      "id": "f4170d409ff4",
+      "name": "Huỳnh Đức Nhật Anh",
+      "code": "anhhdn_lck"
+    },
+    {
+      "id": "e179815e63b5",
+      "name": "Nguyễn Tất Đông",
+      "code": "dongnt_lck"
+    },
+    {
+      "id": "ea99708a6518",
+      "name": "Dương Khắc Nhuận",
+      "code": "nhuandk_icu"
+    },
+    {
+      "id": "55244c923398",
+      "name": "NEÀNG SA UM",
+      "code": "saumn_icu"
+    },
+    {
+      "id": "2b9e87520920",
+      "name": "Kim Thị Ngọc Huyền",
+      "code": "huyenktn_icu"
+    },
+    {
+      "id": "9d92416940c4",
+      "name": "Võ Ngọc Sang",
+      "code": "sangvn_cc"
+    },
+    {
+      "id": "c1c91279b3e6",
+      "name": "Vương Thanh Thiệu",
+      "code": "thieuvt_cc"
+    },
+    {
+      "id": "0e0e44989c7c",
+      "name": "Hồ Văn Dù",
+      "code": "duhv_cc"
+    },
+    {
+      "id": "e5eb54f7c54c",
+      "name": "Nguyễn Văn Nhựt",
+      "code": "nhutnv_cc"
+    },
+    {
+      "id": "556867357867",
+      "name": "Hoàng Văn Tài",
+      "code": "taihv_ctch"
+    },
+    {
+      "id": "41cd4ebdd66d",
+      "name": "Nguyễn Hoàng Việt",
+      "code": "vietnh_ctch"
+    },
+    {
+      "id": "a538efc0d910",
+      "name": "Nguyễn Thị Thảo Quyên",
+      "code": "quyenntt_san"
+    },
+    {
+      "id": "209f4a8c820a",
+      "name": "Phạm Công Thiện",
+      "code": "thienpc_ctch"
+    },
+    {
+      "id": "64efca677304",
+      "name": "Đỗ Hoàng Quốc An",
+      "code": "andhq_ctch"
+    },
+    {
+      "id": "6f3faf3e5d15",
+      "name": "Zơ Râm Thuông",
+      "code": "thuongzr_san"
+    },
+    {
+      "id": "9ca628102c83",
+      "name": "Phạm Ngọc Anh",
+      "code": "anhpn_san"
+    },
+    {
+      "id": "ce4670eae8f5",
+      "name": "Phạm Thanh Hải",
+      "code": "haipt_gmhs"
+    },
+    {
+      "id": "509c44212578",
+      "name": "Nguyễn Thị Kiều Oanh",
+      "code": "oanhntk_hhnt"
+    },
+    {
+      "id": "945f9817cb1d",
+      "name": "Trần Thị Diệu Thương",
+      "code": "thuongttd_ntm"
+    },
+    {
+      "id": "a8c6ec410b51",
+      "name": "Đỗ Thị Mỹ Huyền",
+      "code": "huyendtm_ntq"
+    },
+    {
+      "id": "75350e3c9dac",
+      "name": "Phạm Kiều Dung",
+      "code": "dungpk_ntq"
+    },
+    {
+      "id": "0cc61eeda287",
+      "name": "Nguyễn Thị Cẩm Nhung",
+      "code": "nhungntc_ntq"
+    },
+    {
+      "id": "35d75ac542be",
+      "name": "Đỗ Thị Xuân Miên",
+      "code": ""
+    },
+    {
+      "id": "e44761448a34",
+      "name": "Nguyễn Minh Trí",
+      "code": ""
+    },
+    {
+      "id": "bfc323918bc8",
+      "name": "Nguyễn Hải Quí",
+      "code": ""
+    },
+    {
+      "id": "26f8b31dab49",
+      "name": "Lê Khắc Trương Bình",
+      "code": ""
+    },
+    {
+      "id": "2704f4321602",
+      "name": "Lê Thị Bích",
+      "code": ""
+    },
+    {
+      "id": "6d8caf419887",
+      "name": "Nguyễn Thị Cẩm",
+      "code": ""
+    },
+    {
+      "id": "26f2699dd395",
+      "name": "Trần Nam Cao",
+      "code": ""
+    },
+    {
+      "id": "273b857933cf",
+      "name": "Nguyễn Đăng Khoa",
+      "code": ""
+    },
+    {
+      "id": "6a643fbff8bb",
+      "name": "Huỳnh Văn Vũ",
+      "code": ""
+    },
+    {
+      "id": "d61aa5bcc6a2",
+      "name": "Nguyễn Hoàng Hữu Nhã",
+      "code": ""
+    },
+    {
+      "id": "de70b7a3b484",
+      "name": "Phạm Huỳnh Yến Nhi",
+      "code": ""
+    },
+    {
+      "id": "d74d51ae7ce6",
+      "name": "Dương Thị Dịu",
+      "code": ""
+    },
+    {
+      "id": "0562f1a5c80f",
+      "name": "Ngô Văn Công",
+      "code": ""
+    },
+    {
+      "id": "9d84a0eaa51f",
+      "name": "Nguyễn Thị Nguyệt",
+      "code": ""
+    },
+    {
+      "id": "d6832d34ddc7",
+      "name": "Nguyễn Trí Thông",
+      "code": ""
+    },
+    {
+      "id": "f3bfc682b19b",
+      "name": "Nguyễn Văn Khánh Trân",
+      "code": ""
+    },
+    {
+      "id": "99564ea389ec",
+      "name": "Đỗ Lê Hồng Lâm",
+      "code": ""
+    },
+    {
+      "id": "aa1e0524bd69",
+      "name": "Trần Huỳnh Ân",
+      "code": ""
+    },
+    {
+      "id": "5765c1ab48ad",
+      "name": "Nguyễn Thị Thanh Thảo",
+      "code": ""
+    }
+  ]
+}

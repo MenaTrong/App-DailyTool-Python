@@ -1,0 +1,328 @@
+#!/usr/bin/env python3
+"""Xuất danh sách ngày nghỉ bác sĩ từ file chấm công.
+
+Đọc các sheet khoa trong file chấm công tháng, lấy bác sĩ, và ghi một file
+giống mẫu «Ngày Nghỉ BS»: mỗi dòng là một ngày nghỉ. Cột Mã Bác Sĩ
+ghép theo họ tên từ danh mục mã.
+
+Quy ước:
+- Dấu + hoặc T (cả khối Tăng cường) là đang làm. Ngày đó không đưa vào danh sách.
+- Ô có hai dòng: dòng trên là buổi sáng, dòng dưới là buổi chiều.
+- Chỉ nghỉ một buổi thì cột Nghỉ sáng hoặc Nghỉ chiều ghi X.
+- Cả ngày không có +/T thì vẫn là một dòng ngày nghỉ, hai cột buổi để trống.
+- Khối Ngoài giờ (số giờ) không tính.
+
+Cách dùng:
+    python3 xuat_ngay_nghi.py "file-cham-cong.xlsx"
+    python3 xuat_ngay_nghi.py "file-cham-cong.xlsx" -o "Ngày Nghỉ BS T7.xlsx"
+"""
+
+from __future__ import annotations
+
+import argparse
+import calendar
+import re
+import sys
+import unicodedata
+from pathlib import Path
+
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+BS_ROLE = re.compile(r"(^|[^A-Z])BS([^A-Z]|$)")
+ROMAN = {"I", "II", "III", "IV", "V"}
+SECTION_NAMES = {"CHÍNH THỨC", "THỬ VIỆC", "BÁN THỜI GIAN", "TĂNG CƯỜNG", "NGOÀI GIỜ"}
+APOSTROPHES = "'’ʻʼ`´′‛"
+SKIP_SHEETS = {"CÁC NGÀY LẼ"}
+
+
+def norm_name(value: str) -> str:
+    text = unicodedata.normalize("NFC", str(value)).strip().lower()
+    for char in APOSTROPHES:
+        text = text.replace(char, "'")
+    text = text.replace("\n", " ")
+    return re.sub(r"\s+", " ", text)
+
+
+def is_doctor(role: str) -> bool:
+    compact = role.replace("\n", " ").upper()
+    return BS_ROLE.search(compact) is not None
+
+
+def is_work_line(text: str) -> bool:
+    cleaned = text.replace("\u00a0", "").strip()
+    if not cleaned:
+        return False
+    if "+" in cleaned:
+        return True
+    token = cleaned.upper().replace(" ", "")
+    return token in {"T", "Т"}
+
+
+def session_work(raw) -> tuple[bool, bool] | None:
+    """Trả về (nghỉ? không) buổi sáng, buổi chiều đang làm.
+
+    None nghĩa là ô không mang ký hiệu chấm công (trống hoặc chỉ là số giờ).
+    """
+    if raw is None or isinstance(raw, (int, float)):
+        return None
+    text = str(raw).replace("\u00a0", " ")
+    if not text.strip():
+        return None
+    lines = text.splitlines() or [text]
+    if len(lines) == 1:
+        working = is_work_line(lines[0])
+        return (working, working)
+    return (is_work_line(lines[0]), is_work_line(lines[1]))
+
+
+def find_month_year(rows: list[tuple]) -> tuple[int | None, int | None]:
+    month = year = None
+    for row in rows[:8]:
+        for index, value in enumerate(row):
+            if not isinstance(value, str):
+                continue
+            label = value.strip().lower()
+            if label not in {"tháng", "năm"}:
+                continue
+            for nxt in row[index + 1 : index + 8]:
+                if isinstance(nxt, (int, float)) and nxt:
+                    number = int(nxt)
+                    if label == "tháng" and month is None:
+                        month = number
+                    elif label == "năm" and year is None:
+                        year = number
+                    break
+    return month, year
+
+
+def find_day_columns(rows: list[tuple]) -> dict[int, int] | None:
+    for row in rows[:15]:
+        mapping: dict[int, int] = {}
+        for index, value in enumerate(row):
+            if isinstance(value, (int, float)) and float(value).is_integer():
+                day = int(value)
+                if 1 <= day <= 31:
+                    mapping[day] = index
+        if 1 in mapping and 2 in mapping and len(mapping) >= 28:
+            return mapping
+    return None
+
+
+def parse_attendance(path: Path) -> tuple[int, int, list[dict]]:
+    workbook = load_workbook(path, read_only=True, data_only=False)
+    month = year = None
+    people: list[dict] = []
+    try:
+        for sheet_name in workbook.sheetnames:
+            if sheet_name in SKIP_SHEETS or sheet_name.upper().startswith("TỔNG"):
+                continue
+            sheet = workbook[sheet_name]
+            preview = []
+            for row in sheet.iter_rows(min_row=1, max_row=12, max_col=40, values_only=True):
+                preview.append(tuple(row))
+            if not any(isinstance(cell, str) and cell.strip() == "Họ và tên" for row in preview for cell in row):
+                continue
+            day_columns = find_day_columns(preview)
+            if not day_columns:
+                continue
+            found_month, found_year = find_month_year(preview)
+            month = month or found_month
+            year = year or found_year
+
+            section = ""
+            grouped: dict[str, dict] = {}
+            order: list[str] = []
+            for row in sheet.iter_rows(min_row=9, max_col=40, values_only=True):
+                values = tuple(row)
+                marker = "" if values[0] is None else str(values[0]).replace("\n", " ").strip()
+                name = "" if len(values) < 2 or values[1] is None else str(values[1]).strip()
+                role = "" if len(values) < 3 or values[2] is None else str(values[2]).replace("\n", " ").strip()
+                identity = "" if len(values) < 4 or values[3] is None else str(values[3]).strip()
+                name_key = name.upper()
+                if marker in ROMAN or name_key in SECTION_NAMES:
+                    section = marker if marker in ROMAN else name_key
+                    continue
+                if not name or not role or not is_doctor(role):
+                    continue
+                if section == "V" or "NGOÀI GIỜ" in section:
+                    continue
+                key = identity or norm_name(name)
+                if key not in grouped:
+                    grouped[key] = {"name": name, "role": role, "sheet": sheet_name, "days": {}}
+                    order.append(key)
+                person = grouped[key]
+                for day, column in day_columns.items():
+                    if column >= len(values):
+                        continue
+                    raw = values[column]
+                    if raw is None or (isinstance(raw, str) and not raw.strip()):
+                        continue
+                    person["days"].setdefault(day, []).append(raw)
+            people.extend(grouped[key] for key in order)
+    finally:
+        workbook.close()
+    if month is None or year is None:
+        raise ValueError("Không đọc được Tháng/Năm trong file chấm công.")
+    return month, year, people
+
+
+def off_mark(cells: list) -> tuple[str, str] | None:
+    """None nếu cả hai buổi đều có + hoặc T. Ngược lại ('X' hoặc '', 'X' hoặc '')."""
+    morning = afternoon = False
+    for raw in cells:
+        flags = session_work(raw)
+        if flags is None:
+            continue
+        morning = morning or flags[0]
+        afternoon = afternoon or flags[1]
+    if morning and afternoon:
+        return None
+    if morning and not afternoon:
+        return ("", "X")
+    if afternoon and not morning:
+        return ("X", "")
+    return ("", "")
+
+
+def build_rows(month: int, year: int, people: list[dict]) -> list[dict]:
+    last_day = calendar.monthrange(year, month)[1]
+    rows = []
+    for person in people:
+        for day in range(1, last_day + 1):
+            mark = off_mark(person["days"].get(day, []))
+            if mark is None:
+                continue
+            rows.append(
+                {
+                    "code": person.get("code") or "",
+                    "name": person["name"],
+                    "year": year,
+                    "month": month,
+                    "day": day,
+                    "morning": mark[0],
+                    "afternoon": mark[1],
+                }
+            )
+    return rows
+
+
+def write_workbook(path: Path, rows: list[dict]) -> None:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "ngày nghỉ"
+
+    headers = ["Mã Bác Sĩ", "Tên Bác Sĩ", "Năm nghỉ", "Tháng nghỉ", "Ngày Nghỉ", "Nghỉ sáng", "Nghỉ chiều"]
+    header_font = Font(name="Calibri", bold=True, size=11, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="1B4332")
+    center = Alignment(horizontal="center", vertical="center")
+    left = Alignment(horizontal="left", vertical="center")
+    thin = Border(
+        left=Side(style="thin", color="D1D5DB"),
+        right=Side(style="thin", color="D1D5DB"),
+        top=Side(style="thin", color="D1D5DB"),
+        bottom=Side(style="thin", color="D1D5DB"),
+    )
+    widths = {"A": 18, "B": 28, "C": 12, "D": 12, "E": 12, "F": 12, "G": 14}
+    for column, width in widths.items():
+        sheet.column_dimensions[column].width = width
+    for column, title in enumerate(headers, 1):
+        cell = sheet.cell(1, column, title)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center
+        cell.border = thin
+    sheet.row_dimensions[1].height = 22
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = f"A1:G{max(1, len(rows) + 1)}"
+    sheet.page_setup.orientation = "landscape"
+    sheet.page_setup.fitToPage = True
+    sheet.page_setup.fitToWidth = 1
+    sheet.page_setup.fitToHeight = 0
+    sheet.sheet_properties.pageSetUpPr.fitToPage = True
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
+    sheet.sheet_properties.tabColor = "9F1239"
+    sheet.oddFooter.center.text = "Ngày nghỉ bác sĩ"
+
+    alt = PatternFill("solid", fgColor="F8FAFC")
+    for index, item in enumerate(rows, 2):
+        fill = alt if index % 2 == 0 else PatternFill("solid", fgColor="FFFFFF")
+        values = [
+            item["code"],
+            item["name"],
+            item["year"],
+            item["month"],
+            item["day"],
+            item["morning"],
+            item["afternoon"],
+        ]
+        for column, value in enumerate(values, 1):
+            cell = sheet.cell(index, column, value if value != "" else None)
+            cell.border = thin
+            cell.fill = fill
+            cell.font = Font(name="Calibri", size=11)
+            cell.alignment = left if column in (1, 2) else center
+        for column in (6, 7):
+            if sheet.cell(index, column).value == "X":
+                sheet.cell(index, column).font = Font(name="Calibri", size=11, bold=True, color="9F1239")
+
+    for column in range(3, 6):
+        for row in range(2, len(rows) + 2):
+            sheet.cell(row, column).number_format = "0"
+
+    workbook.save(path)
+
+
+def export_leave_workbook(source: Path, output: Path | None = None) -> dict:
+    """Đọc file chấm công và ghi file ngày nghỉ. Trả về số liệu đã xuất."""
+    from dailytool.doctors import apply_to_people
+
+    source = source.expanduser().resolve()
+    if not source.exists():
+        raise FileNotFoundError(f"Không thấy file: {source}")
+    month, year, people = parse_attendance(source)
+    codes = apply_to_people(people)
+    rows = build_rows(month, year, people)
+    if output is None:
+        output = source.parent / f"Ngày Nghỉ BS T{month}.xlsx"
+    else:
+        output = output.expanduser().resolve()
+    write_workbook(output, rows)
+    morning = sum(1 for row in rows if row["morning"] == "X")
+    afternoon = sum(1 for row in rows if row["afternoon"] == "X")
+    full = sum(1 for row in rows if not row["morning"] and not row["afternoon"])
+    return {
+        "output": output,
+        "month": month,
+        "year": year,
+        "doctors": len(people),
+        "rows": len(rows),
+        "full": full,
+        "morning": morning,
+        "afternoon": afternoon,
+        "coded": codes["coded"],
+        "uncoded": codes["uncoded"],
+        "ambiguous": codes["ambiguous"],
+        "codes_added": codes["added"],
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Xuất ngày nghỉ bác sĩ từ file chấm công.")
+    parser.add_argument("cham_cong", type=Path, help="File Excel chấm công tháng")
+    parser.add_argument("-o", "--output", type=Path, help="File Excel kết quả")
+    args = parser.parse_args(argv)
+
+    try:
+        result = export_leave_workbook(args.cham_cong, args.output)
+    except (FileNotFoundError, ValueError) as error:
+        print(error, file=sys.stderr)
+        return 1
+    print(f"Tháng {result['month']}/{result['year']}: {result['doctors']} bác sĩ, {result['rows']} dòng ngày nghỉ")
+    print(f"  Cả ngày: {result['full']}    Nghỉ sáng: {result['morning']}    Nghỉ chiều: {result['afternoon']}")
+    print(f"  Đã gắn mã: {result['coded']}    Chưa có mã: {len(result['uncoded'])}    Trùng mã: {len(result['ambiguous'])}")
+    print(f"Đã ghi {result['output']}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
