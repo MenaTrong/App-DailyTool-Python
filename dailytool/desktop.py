@@ -8,11 +8,10 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
-import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-from dailytool import GITHUB_REPO, __version__
+from dailytool import __version__
 from dailytool.doctors import (
     add_doctor,
     delete_doctor,
@@ -21,16 +20,7 @@ from dailytool.doctors import (
     summary,
     update_doctor,
 )
-from dailytool.update import (
-    UpdateError,
-    consume_update_failure,
-    download,
-    fetch_latest,
-    install_downloaded,
-    installed_executable,
-    short_notes,
-)
-from xuat_ngay_nghi import export_leave_workbook, norm_name
+from xuat_ngay_nghi import build_leave_order_scan_from_file, export_leave_workbook, norm_name
 
 SIDEBAR = "#1b4332"
 SIDEBAR_ACTIVE = "#2d6a4f"
@@ -264,13 +254,9 @@ class DailyTool(tk.Tk):
         self.save_excel_var = tk.BooleanVar(value=True)
         self.status_var = tk.StringVar(value="Chọn file chấm công, rồi xuất.")
         self._busy = False
-        self._update_busy = False
-        self._update_label = "Kiểm tra cập nhật"
-        self._want_prompt = False
         self._last_output: Path | None = None
         self._last_sql_text = ""
         self._queue: queue.Queue[tuple[str, object]] = queue.Queue()
-        self._update_queue: queue.Queue[tuple] = queue.Queue()
 
         style = ttk.Style(self)
         if sys.platform == "win32" and "vista" in style.theme_names():
@@ -300,31 +286,13 @@ class DailyTool(tk.Tk):
             pady=10,
         ).pack(fill="x", pady=(8, 0))
 
-        footer = tk.Frame(sidebar, bg=SIDEBAR)
-        footer.pack(side="bottom", fill="x", padx=12, pady=(0, 16))
-        self.update_button = tk.Button(
-            footer,
-            text="Kiểm tra cập nhật",
-            command=self.check_for_update,
-            bg=SIDEBAR_ACTIVE,
-            fg="white",
-            activebackground="#40916c",
-            activeforeground="white",
-            relief="flat",
-            font=("Segoe UI", 10),
-            cursor="hand2",
-            padx=8,
-            pady=6,
-        )
-        self.update_button.pack(fill="x")
-
         content = ttk.Frame(self, padding=(28, 24, 28, 18))
         content.pack(side="left", fill="both", expand=True)
 
         ttk.Label(content, text="Ngày nghỉ bác sĩ", style="Title.TLabel").pack(anchor="w")
         ttk.Label(
             content,
-            text="Đọc file chấm công tháng và tạo danh sách ngày bác sĩ nghỉ.\nNgày đã đánh + hoặc T không được đưa vào kết quả.\nCột Mã bác sĩ lấy theo danh mục trong tác vụ này. SQL hiện trong app để copy.",
+            text="Đọc file chấm công tháng và tạo danh sách ngày bác sĩ nghỉ.\nNgày đã đánh + hoặc T không được đưa vào kết quả.\nCột Mã bác sĩ lấy theo danh mục trong tác vụ này. SQL hiện trong app để copy.\n«SQL quét y lệnh»: SELECT từ lịch nghỉ trong file (không cần INSERT DB).",
             style="Muted.TLabel",
             justify="left",
         ).pack(anchor="w", pady=(6, 18))
@@ -356,6 +324,8 @@ class DailyTool(tk.Tk):
         actions.pack(fill="x", pady=(18, 8))
         self.export_button = ttk.Button(actions, text="Xuất", command=self.export)
         self.export_button.pack(side="left")
+        self.scan_sql_button = ttk.Button(actions, text="SQL quét y lệnh", command=self.scan_leave_orders)
+        self.scan_sql_button.pack(side="left", padx=(8, 0))
         ttk.Button(actions, text="Mã bác sĩ…", command=self.open_codes).pack(side="left", padx=(8, 0))
         self.open_button = ttk.Button(actions, text="Mở file Excel", command=self.open_result, state="disabled")
         self.open_button.pack(side="left", padx=(8, 0))
@@ -376,9 +346,6 @@ class DailyTool(tk.Tk):
         self.sql_view.pack(fill="both", expand=True, pady=(4, 8))
 
         ttk.Label(content, textvariable=self.status_var, style="Muted.TLabel").pack(side="bottom", anchor="w")
-        self.after(600, self._show_update_problem)
-        if GITHUB_REPO.strip():
-            self.after(1200, lambda: self._start_update_check(silent=True))
 
     def choose_source(self) -> None:
         path = filedialog.askopenfilename(
@@ -449,6 +416,7 @@ class DailyTool(tk.Tk):
 
         self._busy = True
         self.export_button.state(["disabled"])
+        self.scan_sql_button.state(["disabled"])
         self.open_button.state(["disabled"])
         self.copy_sql_button.state(["disabled"])
         self.result_label.configure(text="")
@@ -466,6 +434,37 @@ class DailyTool(tk.Tk):
         threading.Thread(target=work, daemon=True).start()
         self.after(150, self._poll_export)
 
+    def scan_leave_orders(self) -> None:
+        if self._busy:
+            return
+        source_text = self.source_var.get().strip()
+        if not source_text:
+            messagebox.showwarning("DailyTool", "Hãy chọn file chấm công.")
+            return
+        source = Path(source_text).expanduser()
+        if not source.exists():
+            messagebox.showerror("DailyTool", f"Không thấy file:\n{source}")
+            return
+
+        self._busy = True
+        self.export_button.state(["disabled"])
+        self.scan_sql_button.state(["disabled"])
+        self.copy_sql_button.state(["disabled"])
+        self.result_label.configure(text="")
+        self._set_sql_view("")
+        self.status_var.set("Đang tạo SQL quét y lệnh ngày nghỉ…")
+
+        def work() -> None:
+            try:
+                result = build_leave_order_scan_from_file(source)
+            except Exception as error:
+                self._queue.put(("scan_err", error))
+                return
+            self._queue.put(("scan_ok", result))
+
+        threading.Thread(target=work, daemon=True).start()
+        self.after(150, self._poll_export)
+
     def _poll_export(self) -> None:
         try:
             kind, payload = self._queue.get_nowait()
@@ -476,11 +475,18 @@ class DailyTool(tk.Tk):
         if kind == "ok":
             self._export_done(payload)  # type: ignore[arg-type]
             return
+        if kind == "scan_ok":
+            self._scan_done(payload)  # type: ignore[arg-type]
+            return
+        if kind == "scan_err":
+            self._scan_failed(payload)  # type: ignore[arg-type]
+            return
         self._export_failed(payload)  # type: ignore[arg-type]
 
     def _export_done(self, result: dict) -> None:
         self._busy = False
         self.export_button.state(["!disabled"])
+        self.scan_sql_button.state(["!disabled"])
         self._last_sql_text = str(result.get("sql_text") or "")
         self._set_sql_view(self._last_sql_text)
         if self._last_sql_text:
@@ -519,136 +525,52 @@ class DailyTool(tk.Tk):
         else:
             self.status_var.set("Đã tạo SQL (không lưu Excel). Có thể Copy SQL.")
 
+    def _scan_done(self, result: dict) -> None:
+        self._busy = False
+        self.export_button.state(["!disabled"])
+        self.scan_sql_button.state(["!disabled"])
+        self._last_sql_text = str(result.get("sql_text") or "")
+        self._set_sql_view(self._last_sql_text)
+        if self._last_sql_text:
+            self.copy_sql_button.state(["!disabled"])
+
+        uncoded = result["uncoded"]
+        ambiguous = result["ambiguous"]
+        extra = ""
+        if uncoded:
+            preview = ", ".join(uncoded[:6])
+            if len(uncoded) > 6:
+                preview += f", và {len(uncoded) - 6} người nữa"
+            extra += f"\nChưa có mã ({len(uncoded)}): {preview}"
+        if ambiguous:
+            extra += "\nCần chọn một mã: " + ", ".join(ambiguous)
+        self.result_label.configure(
+            text=(
+                f"SQL quét y lệnh — Tháng {result['month']}/{result['year']}\n"
+                f"{result['doctors']} bác sĩ, {result['rows']} dòng ngày nghỉ\n"
+                f"Đã nhúng {result['coded_rows']} dòng có mã (JSON_TABLE, lọc HIS cả tháng)\n"
+                f"Đã gắn mã: {result['coded']}"
+                f"{extra}"
+            )
+        )
+        self.status_var.set("Đã tạo SQL quét y lệnh từ file chấm công. Có thể Copy SQL.")
+
     def _export_failed(self, error: Exception) -> None:
         self._busy = False
         self.export_button.state(["!disabled"])
+        self.scan_sql_button.state(["!disabled"])
         self.status_var.set("Xuất không thành công.")
+        messagebox.showerror("DailyTool", str(error))
+
+    def _scan_failed(self, error: Exception) -> None:
+        self._busy = False
+        self.export_button.state(["!disabled"])
+        self.scan_sql_button.state(["!disabled"])
+        self.status_var.set("Tạo SQL quét y lệnh không thành công.")
         messagebox.showerror("DailyTool", str(error))
 
     def open_codes(self) -> None:
         DoctorCodes(self, self.source_var.get().strip())
-
-    def check_for_update(self) -> None:
-        self._want_prompt = True
-        self._start_update_check(silent=False)
-
-    def _show_update_problem(self) -> None:
-        message = consume_update_failure()
-        if message:
-            messagebox.showwarning("DailyTool", message)
-
-    def _start_update_check(self, silent: bool) -> None:
-        if self._update_busy:
-            if not silent:
-                self._want_prompt = True
-            return
-        self._update_busy = True
-        if not silent:
-            self.update_button.configure(text="Đang kiểm tra…")
-            self.status_var.set("Đang hỏi GitHub…")
-
-        def work() -> None:
-            try:
-                release = fetch_latest()
-            except Exception as error:
-                self._update_queue.put(("err", error, silent))
-                return
-            self._update_queue.put(("release", release, silent))
-
-        threading.Thread(target=work, daemon=True).start()
-        self.after(150, self._poll_update)
-
-    def _poll_update(self) -> None:
-        if not self.winfo_exists():
-            return
-        try:
-            kind, payload, extra = self._update_queue.get_nowait()
-        except queue.Empty:
-            if self._update_busy:
-                self.after(150, self._poll_update)
-            return
-        if kind == "progress":
-            written, total = payload, extra
-            if total:
-                self.status_var.set(f"Đang tải bản mới… {int(written * 100 / total)}%")
-            else:
-                self.status_var.set("Đang tải bản mới…")
-            self.after(150, self._poll_update)
-            return
-        if kind == "err":
-            self._update_idle()
-            if not extra:
-                messagebox.showerror("DailyTool", str(payload))
-            return
-        if kind == "file":
-            self._update_idle()
-            self._apply_download(payload, extra)
-            return
-        self._update_idle()
-        silent = bool(extra) and not self._want_prompt
-        self._want_prompt = False
-        if payload is None:
-            if not silent:
-                messagebox.showinfo("DailyTool", f"Bạn đang dùng bản mới nhất ({__version__}).")
-            return
-        self._update_label = f"Cập nhật v{payload.version}"
-        self.update_button.configure(text=self._update_label)
-        self.status_var.set(f"Có bản {payload.version}. Bấm Cập nhật ở thanh bên.")
-        if silent:
-            return
-        self._offer_update(payload)
-
-    def _update_idle(self) -> None:
-        self._update_busy = False
-        if self.update_button.cget("text") in {"Đang kiểm tra…", "Đang tải…"}:
-            self.update_button.configure(text=self._update_label)
-
-    def _offer_update(self, release) -> None:
-        notes = short_notes(release.notes) or "Không có ghi chú."
-        target = installed_executable()
-        if target is None:
-            open_page = messagebox.askyesno(
-                "DailyTool",
-                f"Có bản {release.version} (bạn đang dùng {__version__}).\n\n{notes}\n\nBản này chạy từ mã nguồn, không tự thay file. Mở trang tải DailyTool.exe?",
-            )
-            if open_page and release.page:
-                webbrowser.open(release.page)
-            return
-        agreed = messagebox.askyesno(
-            "DailyTool",
-            f"Có bản {release.version} (bạn đang dùng {__version__}).\n\n{notes}\n\nTải về và cài? Ứng dụng sẽ đóng rồi mở lại. Danh mục mã bác sĩ được giữ nguyên.",
-        )
-        if not agreed:
-            return
-        self._update_busy = True
-        self.update_button.configure(text="Đang tải…")
-        self.status_var.set(f"Đang tải bản {release.version}…")
-
-        def work() -> None:
-            try:
-                path = download(release, on_progress=lambda written, total: self._update_queue.put(("progress", written, total)))
-            except Exception as error:
-                self._update_queue.put(("err", error, False))
-                return
-            self._update_queue.put(("file", path, release))
-
-        threading.Thread(target=work, daemon=True).start()
-        self.after(150, self._poll_update)
-
-    def _apply_download(self, path: Path, release) -> None:
-        target = installed_executable()
-        if target is None:
-            if release.page:
-                webbrowser.open(release.page)
-            messagebox.showinfo("DailyTool", f"Đã tải bản {release.version} tại:\n{path}")
-            return
-        try:
-            install_downloaded(path, target)
-        except UpdateError as error:
-            messagebox.showerror("DailyTool", str(error))
-            return
-        self.status_var.set("Đang cài bản mới…")
-        self.destroy()
 
     def copy_sql(self) -> None:
         if not self._last_sql_text:

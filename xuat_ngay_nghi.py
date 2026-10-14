@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import calendar
+import json
 import re
 import sys
 import unicodedata
@@ -294,6 +295,192 @@ def build_oracle_script(rows: list[dict]) -> str:
 
 def write_oracle_script(path: Path, rows: list[dict]) -> None:
     path.write_text(build_oracle_script(rows), encoding="utf-8")
+
+
+def _oracle_clob_literal(text: str, chunk: int = 3000) -> str:
+    """Ghép chuỗi dài thành TO_CLOB(...) || ... để vượt giới hạn literal 4000."""
+    if not text:
+        return "TO_CLOB('')"
+    parts = []
+    for index in range(0, len(text), chunk):
+        piece = text[index : index + chunk].replace("'", "''")
+        parts.append(f"TO_CLOB('{piece}')")
+    return " ||\n    ".join(parts)
+
+
+def build_leave_order_scan_sql(rows: list[dict]) -> str:
+    """SQL SELECT: ngày nghỉ có mã BS mà vẫn có chỉ định y lệnh HIS.
+
+    Không cần INSERT bvxa_lichnghi: nhúng lịch nghỉ từ file chấm công bằng JSON_TABLE,
+    lọc HIS theo cả tháng rồi khớp khóa ngày (nhanh hơn UNION ALL + BETWEEN từng ngày).
+    Cần Oracle 12c+ (JSON_TABLE).
+    """
+    coded = [row for row in rows if str(row.get("code") or "").strip()]
+    if not coded:
+        raise ValueError("Không có dòng ngày nghỉ nào đã gắn mã bác sĩ để quét y lệnh.")
+    year = int(coded[0]["year"])
+    month = int(coded[0]["month"])
+    last_day = calendar.monthrange(year, month)[1]
+    month_start = year * 10000000000 + month * 100000000 + 1 * 1000000
+    month_end = year * 10000000000 + month * 100000000 + last_day * 1000000 + 235959
+    payload = json.dumps(
+        [
+            {
+                "c": str(row["code"]).strip(),
+                "y": int(row["year"]),
+                "m": int(row["month"]),
+                "d": int(row["day"]),
+                "s": str(row.get("morning") or ""),
+                "e": str(row.get("afternoon") or ""),
+            }
+            for row in coded
+        ],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    oracle_json = _oracle_clob_literal(payload)
+    return f"""-- Quét y lệnh trùng ngày nghỉ (tháng {month}/{year})
+-- Không cần INSERT bvxa_lichnghi: lịch nghỉ lấy từ file chấm công (JSON_TABLE).
+-- Buổi sáng: 00:00–12:59 | Buổi chiều: từ 13:00 | Cả ngày (hai cột trống hoặc cả hai X): cả ngày.
+-- Gợi ý index HIS: (REQUEST_LOGINNAME, INTRUCTION_TIME) hoặc (INTRUCTION_TIME).
+
+WITH leave_days AS (
+  SELECT
+      jt.mabs,
+      jt.nam,
+      jt.thang,
+      jt.ngay,
+      jt.sang,
+      jt.chieu,
+      (jt.nam * 10000000000 + jt.thang * 100000000 + jt.ngay * 1000000)
+        + CASE
+            WHEN NVL(TRIM(jt.sang), ' ') = 'X' AND NVL(TRIM(jt.chieu), ' ') <> 'X' THEN 0
+            WHEN NVL(TRIM(jt.chieu), ' ') = 'X' AND NVL(TRIM(jt.sang), ' ') <> 'X' THEN 130000
+            ELSE 0
+          END AS t_from,
+      (jt.nam * 10000000000 + jt.thang * 100000000 + jt.ngay * 1000000)
+        + CASE
+            WHEN NVL(TRIM(jt.sang), ' ') = 'X' AND NVL(TRIM(jt.chieu), ' ') <> 'X' THEN 125959
+            WHEN NVL(TRIM(jt.chieu), ' ') = 'X' AND NVL(TRIM(jt.sang), ' ') <> 'X' THEN 235959
+            ELSE 235959
+          END AS t_to
+  FROM JSON_TABLE(
+    {oracle_json},
+    '$[*]' COLUMNS (
+      mabs  VARCHAR2(64)  PATH '$.c',
+      nam   NUMBER        PATH '$.y',
+      thang NUMBER        PATH '$.m',
+      ngay  NUMBER        PATH '$.d',
+      sang  VARCHAR2(8)   PATH '$.s',
+      chieu VARCHAR2(8)   PATH '$.e'
+    )
+  ) jt
+),
+per_order AS (
+  SELECT
+      ln.mabs,
+      ln.nam,
+      ln.thang,
+      ln.ngay,
+      ln.sang,
+      ln.chieu,
+      sr.SERVICE_REQ_CODE AS ma_y_lenh,
+      RTRIM(
+        XMLAGG(
+          XMLELEMENT(e, ss.TDL_SERVICE_NAME || ', ')
+          ORDER BY ss.TDL_SERVICE_NAME
+        ).EXTRACT('//text()').GetClobVal(),
+        ', '
+      ) AS ten_y_lenh
+  FROM leave_days ln
+  JOIN HIS_SERVICE_REQ sr
+    ON sr.REQUEST_LOGINNAME = ln.mabs
+   AND sr.IS_DELETE = 0
+   AND sr.INTRUCTION_TIME BETWEEN {month_start} AND {month_end}
+   AND sr.INTRUCTION_TIME BETWEEN ln.t_from AND ln.t_to
+  JOIN HIS_SERE_SERV ss
+    ON ss.SERVICE_REQ_ID = sr.ID
+   AND ss.PATIENT_TYPE_ID = 1
+  GROUP BY
+      ln.mabs,
+      ln.nam,
+      ln.thang,
+      ln.ngay,
+      ln.sang,
+      ln.chieu,
+      sr.SERVICE_REQ_CODE
+),
+orders_by_leave AS (
+  SELECT
+      po.mabs,
+      po.nam,
+      po.thang,
+      po.ngay,
+      po.sang,
+      po.chieu,
+      SUBSTR(
+        XMLAGG(
+          XMLELEMENT(e, CHR(10) || po.ma_y_lenh || ' | ' || po.ten_y_lenh)
+          ORDER BY po.ma_y_lenh
+        ).EXTRACT('//text()').GetClobVal(),
+        2
+      ) AS y_lenh
+  FROM per_order po
+  GROUP BY
+      po.mabs,
+      po.nam,
+      po.thang,
+      po.ngay,
+      po.sang,
+      po.chieu
+)
+SELECT
+    ln.mabs AS ma_bac_si,
+    ln.nam,
+    ln.thang,
+    ln.ngay,
+    ln.sang,
+    ln.chieu,
+    obl.y_lenh
+FROM leave_days ln
+LEFT JOIN orders_by_leave obl
+  ON obl.mabs = ln.mabs
+ AND obl.nam = ln.nam
+ AND obl.thang = ln.thang
+ AND obl.ngay = ln.ngay
+ AND NVL(obl.sang, ' ') = NVL(ln.sang, ' ')
+ AND NVL(obl.chieu, ' ') = NVL(ln.chieu, ' ')
+ORDER BY
+    ln.mabs,
+    ln.nam,
+    ln.thang,
+    ln.ngay;
+"""
+
+
+def build_leave_order_scan_from_file(source: Path) -> dict:
+    """Đọc chấm công, gắn mã, trả sql_text quét y lệnh ngày nghỉ + số liệu."""
+    from dailytool.doctors import apply_to_people
+
+    source = source.expanduser().resolve()
+    if not source.exists():
+        raise FileNotFoundError(f"Không thấy file: {source}")
+    month, year, people = parse_attendance(source)
+    codes = apply_to_people(people)
+    rows = build_rows(month, year, people)
+    sql_text = build_leave_order_scan_sql(rows)
+    coded_rows = sum(1 for row in rows if str(row.get("code") or "").strip())
+    return {
+        "sql_text": sql_text,
+        "month": month,
+        "year": year,
+        "doctors": len(people),
+        "rows": len(rows),
+        "coded_rows": coded_rows,
+        "coded": codes["coded"],
+        "uncoded": codes["uncoded"],
+        "ambiguous": codes["ambiguous"],
+    }
 
 
 def export_leave_workbook(
